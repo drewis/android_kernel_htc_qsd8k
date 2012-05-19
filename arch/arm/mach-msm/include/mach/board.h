@@ -21,6 +21,11 @@
 #include <mach/mmc.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_MSM_CPU_AVS
+#define BOARD_MIN_UV_MV CONFIG_MSM_CPU_AVS_MIN_UV_MV
+#define BOARD_MAX_UV_MV CONFIG_MSM_CPU_AVS_MAX_UV_MV
+#endif
+
 /* platform device data structures */
 struct msm_acpu_clock_platform_data {
 	uint32_t acpu_switch_time_us;

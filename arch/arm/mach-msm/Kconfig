@@ -399,6 +399,32 @@ config HTC_ONMODE_CHARGING
   default n
   bool "Low-power hibernate charging support"
 
+config MSM_CPU_AVS
+	bool "Enable Adaptive Voltage Scaling (AVS)"
+	depends on ARCH_MSM_SCORPION
+	default n
+	help
+	  This enables the Adaptive Voltage Scaling feature of
+	  Qualcomm ARMv7 CPUs. It adjusts the voltage for each frequency
+	  based on feedback from three ring oscillators in the CPU.
+
+config MSM_CPU_AVS_MIN_UV_MV
+	int "Min AVS mV"
+	depends on MSM_CPU_AVS
+	default 800
+
+config MSM_CPU_AVS_MAX_UV_MV
+	int "Max AVS mV"
+	depends on MSM_CPU_AVS
+	default 1325
+
+config QSD_PMIC_DEFAULT_DCDC1
+	int "PMIC default output voltage"
+	depends on MSM_CPU_AVS
+	default 1275
+	help
+	  This is the PMIC voltage at Linux kernel boot.
+
 config CACHE_FLUSH_RANGE_LIMIT
 	hex "Cache flush range limit"
 	default 0x40000

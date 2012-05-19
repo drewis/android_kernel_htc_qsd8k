@@ -217,4 +217,8 @@ int regulator_mode_to_status(unsigned int);
 
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 
+#ifdef CONFIG_MSM_CPU_AVS
+extern int tps65023_set_dcdc1_level(struct regulator_dev *dev, int mvolts);
+#endif
+
 #endif
