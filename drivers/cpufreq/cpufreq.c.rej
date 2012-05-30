@@ -1,0 +1,10 @@
+--- drivers/cpufreq/cpufreq.c	2011-03-23 21:27:54.000000000 +1100
++++ drivers/cpufreq/cpufreq.c	2011-05-17 10:17:30.358726816 +1000
+@@ -28,6 +28,7 @@
+ #include <linux/cpu.h>
+ #include <linux/completion.h>
+ #include <linux/mutex.h>
++#include <linux/sched.h>
+ 
+ #include <trace/events/power.h>
+ 
