@@ -242,6 +242,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 		mrq->cmd->error = -ETIMEDOUT;
 		msmsdcc_request_end(msm_host, mrq); 	
 	}
+#elif defined(CONFIG_SCHED_BFS)
+	wait_for_completion(&complete);
 #else
 	wait_for_completion_io(&complete);
 #endif		
