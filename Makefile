@@ -341,7 +341,7 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-SCORPION_FLAGS	= -ffast-math -fsingle-precision-constant -mtune=cortex-a8 -marm -march=armv7-a -mfpu=neon -ftree-vectorize
+SCORPION_FLAGS	= -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -ftree-vectorize -mtune=cortex-a8 -marm -march=armv7-a -mfpu=neon -mvectorize-with-neon-quad
 CFLAGS_MODULE   = -DMODULE $(SCORPION_FLAGS)
 AFLAGS_MODULE   = -DMODULE $(SCORPION_FLAGS)
 LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
