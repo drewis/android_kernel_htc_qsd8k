@@ -29,7 +29,7 @@
 #define HTC_RFKILL_DBG
 
 static struct rfkill *bt_rfk;
-static const char bt_name[] = "bcm4329";
+static const char bt_name[] = "bcmdhd";
 static int pre_state;
 
 static uint32_t supersonic_bt_init_table[] = {
