@@ -305,6 +305,15 @@ obj-$(CONFIG_ARCH_MSMCOPPER) += board-copper.o board-dt.o
 obj-$(CONFIG_ARCH_MSM8960) += devices_htc.o htc_wifi_nvs.o htc_awb_cal.o
 obj-$(CONFIG_ARCH_MSM8X60) += devices_htc.o htc_wifi_nvs.o sysinfo-8x60.o emmc_partitions.o htc_awb_cal.o
 
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi.o board-mahimahi-panel.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-keypad.o board-mahimahi-mmc.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-rfkill.o htc_wifi_nvs.o htc_awb_cal.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-wifi.o board-mahimahi-audio.o
+obj-$(CONFIG_MACH_MAHIMAHI) += msm_vibrator.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-microp.o
+obj-$(CONFIG_MACH_MAHIMAHI) += htc_acoustic_qsd.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-tpa2018d1.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-smb329.o
 
 obj-$(CONFIG_MACH_HTCLEO) += clock-wince.o
 obj-$(CONFIG_MACH_HTCLEO) += board-htcleo-wifi-nvs.o board-htcleo.o board-htcleo-panel.o board-htcleo-keypad.o
