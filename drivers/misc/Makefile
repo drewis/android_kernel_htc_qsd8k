@@ -58,7 +58,6 @@ ifeq ($(CONFIG_MICROP_COMMON),y)
 else
   obj-$(CONFIG_SENSORS_AKM8973) += akm8973.o
 endif
-obj-$(CONFIG_VP_A1026)		+= a1026.o
 obj-$(CONFIG_TSIF) += msm_tsif.o
 msm_tsif-objs := tsif.o
 obj-$(CONFIG_TSIF_CHRDEV) += tsif_chrdev.o
