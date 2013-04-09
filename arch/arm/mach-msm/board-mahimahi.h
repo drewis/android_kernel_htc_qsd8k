@@ -24,11 +24,14 @@
 #define MSM_PMEM_VENC_BASE      0x02B00000
 #define MSM_PMEM_VENC_SIZE      0x00800000
 
+
 #define MSM_GPU_MEM_BASE        0x03300000
 #define MSM_GPU_MEM_SIZE        0x00500000
 
+#if 0 //msm_iomap-8x50.h
 #define MSM_RAM_CONSOLE_BASE	0x03A00000
 #define MSM_RAM_CONSOLE_SIZE	0x00040000
+#endif
 
 #define MSM_FB_BASE		0x03B00000
 #define MSM_FB_SIZE		0x00300000

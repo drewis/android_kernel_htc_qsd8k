@@ -65,6 +65,7 @@
 #include <linux/regulator/machine.h>
 #include "footswitch.h"
 #include <mach/msm_memtypes.h>
+#include "acpuclock.h"
 
 static uint debug_uart;
 
@@ -1144,6 +1145,7 @@ static int __init mahimahi_board_serialno_setup(char *serialno)
 }
 __setup("androidboot.serialno=", mahimahi_board_serialno_setup);
 
+# if 0
 static struct msm_acpu_clock_platform_data mahimahi_clock_data = {
 	.acpu_switch_time_us	= 20,
 	.max_speed_delta_khz	= 256000,
@@ -1161,6 +1163,7 @@ static struct msm_acpu_clock_platform_data mahimahi_cdma_clock_data = {
 	.wait_for_irq_khz	= 235930,
 	.mpll_khz		= 235930
 };
+#endif
 
 #ifdef CONFIG_PERFLOCK
 static unsigned mahimahi_perf_acpu_table[] = {
@@ -1242,10 +1245,15 @@ static void __init mahimahi_init(void)
 
 	mahimahi_board_serialno_setup(board_serialno());
 
+#if 0
 	if (is_cdma_version(system_rev))
 		msm_acpu_clock_init(&mahimahi_cdma_clock_data);
 	else
 		msm_acpu_clock_init(&mahimahi_clock_data);
+#else
+	msm_clock_init(&qds8x50_clock_init_data);
+	acpuclk_init(&acpuclk_8x50_soc_data);
+#endif
 
 #ifdef CONFIG_PERFLOCK
 	perflock_init(&mahimahi_perflock_data);
@@ -1347,8 +1355,12 @@ static void __init mahimahi_fixup(struct machine_desc *desc, struct tag *tags,
 
 static void __init mahimahi_map_io(void)
 {
+#if 0
 	msm_map_qsd8x50_io();
 	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
+#else
+	msm_map_qsd8x50_io();
+#endif
 	if (socinfo_init() < 0)
 		printk(KERN_ERR "%s: socinfo_init() failed!\n",__func__);
 }
