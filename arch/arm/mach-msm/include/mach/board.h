@@ -31,6 +31,7 @@
 #include <linux/msm_ssbi.h>
 #endif
 #include <mach/msm_bus.h>
+#include <mach/mmc.h>
 
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
@@ -558,6 +559,10 @@ void msm_copper_init_irq(void);
 struct mmc_platform_data;
 int  msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
+#elif defined(CONFIG_ARCH_QSD8X50)
+int __init msm_add_sdcc(unsigned int controller,
+			struct msm_mmc_platform_data *plat,
+			unsigned int stat_irq, unsigned long stat_irq_flags);
 #endif
 struct msm_usb_host_platform_data;
 int  msm_add_host(unsigned int host,

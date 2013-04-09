@@ -325,7 +325,7 @@ int __init mahimahi_init_mmc(unsigned int sys_rev, unsigned debug_uart)
 	else {
 		mahimahi_sdslot_data.status = mahimahi_sdslot_status_rev0;
 		mahimahi_sdslot_data.register_status_notify = NULL;
-		set_irq_wake(MSM_GPIO_TO_INT(MAHIMAHI_GPIO_SDMC_CD_REV0_N), 1);
+		irq_set_irq_wake(MSM_GPIO_TO_INT(MAHIMAHI_GPIO_SDMC_CD_REV0_N), 1);
 		msm_add_sdcc(2, &mahimahi_sdslot_data,
 			     MSM_GPIO_TO_INT(MAHIMAHI_GPIO_SDMC_CD_REV0_N),
 			     IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE);
