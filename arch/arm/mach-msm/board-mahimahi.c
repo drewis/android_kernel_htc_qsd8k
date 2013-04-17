@@ -66,6 +66,7 @@
 #include "footswitch.h"
 #include <mach/msm_memtypes.h>
 #include "acpuclock.h"
+#include <linux/spi/spi.h>
 
 static uint debug_uart;
 
@@ -925,7 +926,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
 	.gpio_wake = MAHIMAHI_GPIO_BT_WAKE,
 	.gpio_host_wake = MAHIMAHI_GPIO_BT_HOST_WAKE,
-	.request_clock_off_locked = msm_hs_request_clock_off_locked,
+	.request_clock_off_locked = msm_hs_request_clock_off,
 	.request_clock_on_locked = msm_hs_request_clock_on_locked,
 };
 
@@ -1010,14 +1011,99 @@ static int __init ds2784_battery_init(void)
 	return w1_register_family(&w1_ds2784_family);
 }
 
+static struct resource qsd_spi_resources[] = {
+	{
+		.name   = "spi_irq_in",
+		.start  = INT_SPI_INPUT,
+		.end    = INT_SPI_INPUT,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_out",
+		.start  = INT_SPI_OUTPUT,
+		.end    = INT_SPI_OUTPUT,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_err",
+		.start  = INT_SPI_ERROR,
+		.end    = INT_SPI_ERROR,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_base",
+		.start  = 0xA1200000,
+		.end    = 0xA1200000 + SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "spi_clk",
+		.start  = 17,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_mosi",
+		.start  = 18,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_miso",
+		.start  = 19,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_cs0",
+		.start  = 20,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_pwr",
+		.start  = 21,
+		.end    = 0,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_cs0",
+		.start  = 22,
+		.end    = 0,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct spi_platform_data mahimahi_spi_pdata = {
+	.clk_rate	= 4800000,
+};
+
+struct platform_device qsd_device_spi = {
+	.name           = "spi_qsd",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(qsd_spi_resources),
+	.resource       = qsd_spi_resources,
+	.dev		= {
+		.platform_data = &mahimahi_spi_pdata
+	},
+};
+
+struct platform_device mahimahi_rtc = {
+	.name = "msm_rtc",
+	.id = -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	&msm_device_uart1,
 #endif
+	&qsd_device_spi,
 	&bcm_bt_lpm_device,
 	&msm_device_uart_dm1,
 	&ram_console_device,
 	&mahimahi_rfkill,
+	&mahimahi_rtc,
+	&msm_device_dmov,
 	&msm_device_smd,
 	&msm_device_nand,
 	&msm_device_hsusb,
