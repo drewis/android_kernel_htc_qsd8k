@@ -1244,6 +1244,12 @@ config HTC_PWRSINK
 	default n
 	bool "HTC Power Sink Driver"
 
+config ARCH_MSM_FLASHLIGHT
+	bool "Flashlight Driver"
+	depends on ARCH_MSM
+	help
+	  The flashlight driver is for MSM series.
+
 config BUILD_OMA_DM
 	bool "Build in OMA-DM fixes"
 	default n
