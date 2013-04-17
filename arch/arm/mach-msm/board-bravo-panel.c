@@ -590,7 +590,6 @@ static int samsung_oled_panel_init(struct msm_lcdc_panel_ops *ops)
 static int samsung_oled_panel_unblank(struct msm_lcdc_panel_ops *ops)
 {
 	int i;
-
 	pr_info("%s: +()\n", __func__);
 
 	mutex_lock(&panel_lock);
@@ -1136,7 +1135,7 @@ static int bravo_init_spi_hack(void)
 	if (!spi_base)
 		return -1;
 
-	spi_clk = clk_get(&msm_device_spi.dev, "iface_clk");
+	spi_clk = clk_get(&qsd_device_spi.dev, "spi_clk");
 	if (IS_ERR(spi_clk)) {
 		pr_err("%s: unable to get spi_clk\n", __func__);
 		ret = PTR_ERR(spi_clk);
@@ -1248,6 +1247,7 @@ int __init bravo_init_panel(void)
 
 		if (gpio_get_value(BRAVO_GPIO_LCD_RST_N))
 			tft_panel_on = 1;
+
 		ret = platform_device_register(&bravo_lcdc_tft_device);
 		INIT_WORK(&brightness_delayed_work, bravo_brightness_tft_set_work);
 	} else {

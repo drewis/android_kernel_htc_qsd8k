@@ -26,7 +26,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <mach/mmc.h>
+#include <asm/mach/mmc.h>
 
 #include <mach/vreg.h>
 
@@ -178,11 +178,14 @@ static unsigned int bravo_sdslot_status(struct device *dev)
 int bravo_microp_sdslot_status_register(void (*cb)(int, void *), void *);
 unsigned int bravo_microp_sdslot_status(struct device *);
 
-static struct msm_mmc_platform_data bravo_sdslot_data = {
+static struct mmc_platform_data bravo_sdslot_data = {
 	.ocr_mask		= BRAVO_MMC_VDD,
 	.status			= bravo_microp_sdslot_status,
 	.register_status_notify	= bravo_microp_sdslot_status_register,
 	.translate_vdd		= bravo_sdslot_switchvdd,
+	.msmsdcc_fmin	= 144000,
+	.msmsdcc_fmid	= 25000000,
+	.msmsdcc_fmax	= 49152000,
 };
 
 static uint32_t wifi_on_gpio_table[] = {
@@ -243,12 +246,15 @@ static unsigned int bravo_wifi_status(struct device *dev)
 	return bravo_wifi_cd;
 }
 
-static struct msm_mmc_platform_data bravo_wifi_data = {
+static struct mmc_platform_data bravo_wifi_data = {
 	.ocr_mask		= MMC_VDD_28_29,
 	.built_in		= 1,
 	.status			= bravo_wifi_status,
 	.register_status_notify	= bravo_wifi_status_register,
 	.embedded_sdio		= &bravo_wifi_emb_data,
+	.msmsdcc_fmin	= 144000,
+	.msmsdcc_fmid	= 25000000,
+	.msmsdcc_fmax	= 49152000,
 };
 
 int bravo_wifi_set_carddetect(int val)
