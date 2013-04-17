@@ -40,7 +40,6 @@
 
 #include <mach/board.h>
 #include <mach/msm_hsusb.h>
-#define DEBUG 1
 #include <linux/device.h>
 #include <mach/msm_hsusb_hw.h>
 #include <mach/clk.h>
