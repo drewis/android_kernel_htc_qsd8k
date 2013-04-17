@@ -1250,6 +1250,14 @@ config ARCH_MSM_FLASHLIGHT
 	help
 	  The flashlight driver is for MSM series.
 
+config HTC_ACOUSTIC_QSD
+	tristate "HTC acoustic driver for QSD"
+	depends on ARCH_QSD8X50
+	default y
+	help
+	  Provides user space use shared memory allocate by using RPC code.
+	  Provides headset amp, mic bias and speaker amp control.
+
 config BUILD_OMA_DM
 	bool "Build in OMA-DM fixes"
 	default n
