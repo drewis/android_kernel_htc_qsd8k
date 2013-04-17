@@ -24,7 +24,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/usb/android_composite.h>
+#if 0
 #include <linux/usb/f_accessory.h>
+#endif
 
 #include <linux/android_pmem.h>
 #include <linux/synaptics_i2c_rmi.h>
@@ -43,7 +45,9 @@
 
 #include <mach/board.h>
 #include <mach/hardware.h>
+#if 0
 #include <mach/msm_hsusb.h>
+#endif
 #include <mach/msm_iomap.h>
 #include <mach/msm_serial_debugger.h>
 #include <mach/system.h>
@@ -67,6 +71,21 @@
 #include <mach/msm_memtypes.h>
 #include "acpuclock.h"
 #include <linux/spi/spi.h>
+#include <linux/bma150.h>
+#include <linux/usb/composite.h>
+#include <mach/dma.h>
+#include <mach/htc_usb.h>
+#ifdef CONFIG_USB_MSM_OTG_72K
+#include <mach/msm_hsusb.h>
+#else
+#include <linux/usb/msm_hsusb.h>
+#endif
+#include <mach/msm_hsusb_hw.h>
+#include "pm.h"
+#include "irq.h"
+#include <mach/msm_spi.h>
+#include "pm-boot.h"
+
 
 static uint debug_uart;
 
@@ -78,6 +97,7 @@ extern void __init mahimahi_audio_init(void);
 
 extern int microp_headset_has_mic(void);
 
+#if 0
 static int mahimahi_phy_init_seq[] = {
 	0x0C, 0x31,
 	0x31, 0x32,
@@ -274,6 +294,419 @@ static struct platform_device android_usb_device = {
 		.platform_data = &android_usb_pdata,
 	},
 };
+#endif
+
+/* start usb */
+#define MAHIMAHI_GPIO_USBPHY_3V3_ENABLE		104
+
+static unsigned ulpi_on_gpio_table[] = {
+	GPIO_CFG(0x68, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA),
+	GPIO_CFG(0x6f, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x70, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x71, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x72, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x73, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x74, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x75, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x76, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x77, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x78, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	GPIO_CFG(0x79, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+};
+
+static unsigned ulpi_off_gpio_table[] = {
+	GPIO_CFG(0x68, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_4MA),
+	GPIO_CFG(0x6f, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x70, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x71, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x72, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x73, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x74, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x75, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x76, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x77, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x78, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA),
+	GPIO_CFG(0x79, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_2MA),
+};
+
+static void usb_gpio_init(void)
+{
+	if (gpio_request(0x68, "mahimahi_3v3_enable"))
+		pr_err("failed to request gpio mahimahi_3v3_enable\n");
+	if (gpio_request(0x6f, "ulpi_data_0"))
+		pr_err("failed to request gpio ulpi_data_0\n");
+	if (gpio_request(0x70, "ulpi_data_1"))
+		pr_err("failed to request gpio ulpi_data_1\n");
+	if (gpio_request(0x71, "ulpi_data_2"))
+		pr_err("failed to request gpio ulpi_data_2\n");
+	if (gpio_request(0x72, "ulpi_data_3"))
+		pr_err("failed to request gpio ulpi_data_3\n");
+	if (gpio_request(0x73, "ulpi_data_4"))
+		pr_err("failed to request gpio ulpi_data_4\n");
+	if (gpio_request(0x74, "ulpi_data_5"))
+		pr_err("failed to request gpio ulpi_data_5\n");
+	if (gpio_request(0x75, "ulpi_data_6"))
+		pr_err("failed to request gpio ulpi_data_6\n");
+	if (gpio_request(0x76, "ulpi_data_7"))
+		pr_err("failed to request gpio ulpi_data_7\n");
+	if (gpio_request(0x77, "ulpi_dir"))
+		pr_err("failed to request gpio ulpi_dir\n");
+	if (gpio_request(0x78, "ulpi_next"))
+		pr_err("failed to request gpio ulpi_next\n");
+	if (gpio_request(0x79, "ulpi_stop"))
+		pr_err("failed to request gpio ulpi_stop\n");
+}
+
+static int usb_config_gpio(int config)
+{
+	int pin, rc;
+
+	if (config) {
+		for (pin = 0; pin < ARRAY_SIZE(ulpi_on_gpio_table); pin++) {			
+			rc = gpio_tlmm_config(ulpi_on_gpio_table[pin],
+					      GPIO_CFG_ENABLE);
+			if (rc) {
+				printk(KERN_ERR
+				       "%s: gpio_tlmm_config(%#x)=%d\n",
+				       __func__, ulpi_off_gpio_table[pin], rc);
+				return -EIO;
+			}
+		}
+	} else {
+		for (pin = 0; pin < ARRAY_SIZE(ulpi_off_gpio_table); pin++) {
+			rc = gpio_tlmm_config(ulpi_off_gpio_table[pin],
+					      GPIO_CFG_ENABLE);
+			if (rc) {
+				printk(KERN_ERR
+				       "%s: gpio_tlmm_config(%#x)=%d\n",
+				       __func__, ulpi_on_gpio_table[pin], rc);
+				return -EIO;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void usb_phy_shutdown(void)
+{
+	printk("%s: %s\n", __FILE__, __func__);
+	gpio_set_value(MAHIMAHI_GPIO_USBPHY_3V3_ENABLE, 1); 
+	mdelay(3);
+	gpio_set_value(MAHIMAHI_GPIO_USBPHY_3V3_ENABLE, 0);
+	mdelay(3);
+}
+
+int usb_phy_reset(void  __iomem *regs)
+{
+	printk("%s: %s\n", __FILE__, __func__);
+	usb_phy_shutdown();
+	gpio_set_value(MAHIMAHI_GPIO_USBPHY_3V3_ENABLE, 0); 
+	mdelay(3);
+	gpio_set_value(MAHIMAHI_GPIO_USBPHY_3V3_ENABLE, 1);
+	mdelay(3);
+	usb_config_gpio(1);
+
+	return 0;
+}
+
+#define USB_LINK_RESET_TIMEOUT      (msecs_to_jiffies(10))
+#define CLKRGM_APPS_RESET_USBH      37
+#define CLKRGM_APPS_RESET_USB_PHY   34
+
+#define ULPI_VERIFY_MAX_LOOP_COUNT  3
+static void *usb_base;
+#ifndef MSM_USB_BASE
+#define MSM_USB_BASE              ((unsigned)usb_base)
+#endif
+static unsigned mahimahi_ulpi_read(void __iomem *usb_base, unsigned reg)
+{
+	unsigned timeout = 100000;
+
+	/* initiate read operation */
+	writel(ULPI_RUN | ULPI_READ | ULPI_ADDR(reg),
+	       USB_ULPI_VIEWPORT);
+
+	/* wait for completion */
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
+		cpu_relax();
+
+	if (timeout == 0) {
+		printk(KERN_ERR "ulpi_read: timeout %08x\n",
+			readl(USB_ULPI_VIEWPORT));
+		return 0xffffffff;
+	}
+	return ULPI_DATA_READ(readl(USB_ULPI_VIEWPORT));
+}
+
+static int mahimahi_ulpi_write(void __iomem *usb_base, unsigned val, unsigned reg)
+{
+	unsigned timeout = 10000;
+
+	/* initiate write operation */
+	writel(ULPI_RUN | ULPI_WRITE |
+	       ULPI_ADDR(reg) | ULPI_DATA(val),
+	       USB_ULPI_VIEWPORT);
+
+	/* wait for completion */
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
+		cpu_relax();
+
+	if (timeout == 0) {
+		printk(KERN_ERR "ulpi_write: timeout\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+void msm_hsusb_apps_reset_link(int reset)
+{
+	int ret;
+	unsigned usb_id = CLKRGM_APPS_RESET_USBH;
+
+	if (reset)
+		ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT,
+				&usb_id, NULL);
+	else
+		ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT,
+				&usb_id, NULL);
+	if (ret)
+		printk(KERN_INFO "%s: Cannot set reset to %d (%d)\n",
+			__func__, reset, ret);
+}
+EXPORT_SYMBOL(msm_hsusb_apps_reset_link);
+
+void msm_hsusb_apps_reset_phy(void)
+{
+	int ret;
+	unsigned usb_phy_id = CLKRGM_APPS_RESET_USB_PHY;
+
+	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT,
+			&usb_phy_id, NULL);
+	if (ret) {
+		printk(KERN_INFO "%s: Cannot assert (%d)\n", __func__, ret);
+		return;
+	}
+	msleep(1);
+	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT,
+			&usb_phy_id, NULL);
+	if (ret) {
+		printk(KERN_INFO "%s: Cannot assert (%d)\n", __func__, ret);
+		return;
+	}
+}
+EXPORT_SYMBOL(msm_hsusb_apps_reset_phy);
+
+static int msm_hsusb_phy_verify_access(void __iomem *usb_base)
+{
+	int temp;
+
+	for (temp = 0; temp < ULPI_VERIFY_MAX_LOOP_COUNT; temp++) {
+		if (mahimahi_ulpi_read(usb_base, ULPI_DEBUG) != (unsigned)-1)
+			break;
+		msm_hsusb_apps_reset_phy();
+	}
+
+	if (temp == ULPI_VERIFY_MAX_LOOP_COUNT) {
+		pr_err("%s: ulpi read failed for %d times\n",
+				__func__, ULPI_VERIFY_MAX_LOOP_COUNT);
+		return -1;
+	}
+
+	return 0;
+}
+
+static unsigned msm_hsusb_ulpi_read_with_reset(void __iomem *usb_base, unsigned reg)
+{
+	int temp;
+	unsigned res;
+
+	for (temp = 0; temp < ULPI_VERIFY_MAX_LOOP_COUNT; temp++) {
+		res = mahimahi_ulpi_read(usb_base, reg);
+		if (res != -1)
+			return res;
+		msm_hsusb_apps_reset_phy();
+	}
+
+	pr_err("%s: ulpi read failed for %d times\n",
+			__func__, ULPI_VERIFY_MAX_LOOP_COUNT);
+
+	return -1;
+}
+
+static int msm_hsusb_ulpi_write_with_reset(void __iomem *usb_base,
+		unsigned val, unsigned reg)
+{
+	int temp;
+	int res;
+
+	for (temp = 0; temp < ULPI_VERIFY_MAX_LOOP_COUNT; temp++) {
+		res = mahimahi_ulpi_write(usb_base, val, reg);
+		if (!res)
+			return 0;
+		msm_hsusb_apps_reset_phy();
+	}
+
+	pr_err("%s: ulpi write failed for %d times\n",
+			__func__, ULPI_VERIFY_MAX_LOOP_COUNT);
+	return -1;
+}
+
+static int msm_hsusb_phy_caliberate(void __iomem *usb_base)
+{
+	int ret;
+	unsigned res;
+
+	ret = msm_hsusb_phy_verify_access(usb_base);
+	if (ret)
+		return -ETIMEDOUT;
+
+	res = msm_hsusb_ulpi_read_with_reset(usb_base, ULPI_FUNC_CTRL_CLR);
+	if (res == -1)
+		return -ETIMEDOUT;
+
+	res = msm_hsusb_ulpi_write_with_reset(usb_base,
+			res | ULPI_SUSPENDM,
+			ULPI_FUNC_CTRL_CLR);
+	if (res)
+		return -ETIMEDOUT;
+
+	msm_hsusb_apps_reset_phy();
+
+	return msm_hsusb_phy_verify_access(usb_base);
+}
+
+void msm_hsusb_8x50_phy_reset(void)
+{
+	u32 temp;
+	unsigned long timeout;
+	int ret, usb_phy_error;
+	printk(KERN_INFO "msm_hsusb_phy_reset\n");
+	usb_base = ioremap(MSM_HSUSB_PHYS, 4096);
+
+	msm_hsusb_apps_reset_link(1);
+	msm_hsusb_apps_reset_phy();
+	msm_hsusb_apps_reset_link(0);
+
+	/* select ULPI phy */
+	temp = (readl(USB_PORTSC) & ~PORTSC_PTS);
+	writel(temp | PORTSC_PTS_ULPI, USB_PORTSC);
+
+	if ((ret = msm_hsusb_phy_caliberate(usb_base))) {
+		usb_phy_error = 1;
+		pr_err("msm_hsusb_phy_caliberate returned with %i\n", ret);
+		return;
+	}
+
+	/* soft reset phy */
+	writel(USBCMD_RESET, USB_USBCMD);
+	timeout = jiffies + USB_LINK_RESET_TIMEOUT;
+	while (readl(USB_USBCMD) & USBCMD_RESET) {
+		if (time_after(jiffies, timeout)) {
+			pr_err("usb link reset timeout\n");
+			break;
+		}
+		msleep(1);
+	}
+	usb_phy_error = 0;
+
+	return;
+}
+
+static int mahimahi_phy_init_seq[] = {0x0C, 0x31, 0x30, 0x32, 0x1D, 0x0D, 0x1D, 0x10, -1};
+
+static struct msm_otg_platform_data msm_otg_pdata = {
+	.phy_init_seq		= mahimahi_phy_init_seq,
+	.mode			= USB_PERIPHERAL,
+	.otg_control		= OTG_PHY_CONTROL,
+};
+
+static uint32_t usb_phy_3v3_table[] =
+{
+	PCOM_GPIO_CFG(MAHIMAHI_GPIO_USBPHY_3V3_ENABLE, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA)
+};
+
+static struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "Google, Inc.",
+	.product	= "Nexus One",
+	.release	= 0x0100,
+};
+
+static struct platform_device usb_mass_storage_device = {
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mass_storage_pdata,
+	},
+};
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data rndis_pdata = {
+	.vendorID	= 0x0bb4,
+	.vendorDescr	= "HTC",
+};
+
+static struct platform_device rndis_device = {
+	.name	= "rndis",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &rndis_pdata,
+	},
+};
+#endif
+
+static struct android_usb_platform_data android_usb_pdata = {
+	.functions = usb_functions_all,
+	.vendor_id	= 0x18d1,
+	.product_id	= 0x4e11,
+	.version	= 0x0100,
+	.product_name		= "Nexus One",
+	.manufacturer_name	= "Google, Inc.",
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_all),
+	.functions = usb_functions_all,
+};
+
+static struct platform_device android_usb_device = {
+	.name	= "android_usb",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &android_usb_pdata,
+	},
+};
+
+void mahimahi_add_usb_devices(void)
+{
+	printk(KERN_INFO "%s rev: %d\n", __func__, system_rev);
+	android_usb_pdata.products[0].product_id =
+			android_usb_pdata.product_id;
+
+
+	/* add cdrom support in normal mode */
+	if (board_mfg_mode() == 0) {
+		android_usb_pdata.nluns = 3;
+		android_usb_pdata.cdrom_lun = 0x4;
+	}
+
+	msm_device_otg.dev.platform_data = &msm_otg_pdata;
+	//msm_device_gadget_peripheral.dev.platform_data = &msm_gadget_pdata;
+	msm_device_gadget_peripheral.dev.parent = &msm_device_otg.dev;
+	usb_gpio_init();
+	platform_device_register(&msm_device_gadget_peripheral);
+	platform_device_register(&android_usb_device);
+}
+
+unsigned mahimahi_get_vbus_state(void)
+{
+	if(readl(MSM_SHARED_RAM_BASE+0xef20c))
+		return 1;
+	else
+		return 0;
+}
+/* end usb */
 
 static struct platform_device mahimahi_rfkill = {
 	.name = "mahimahi_rfkill",
@@ -1106,12 +1539,17 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_dmov,
 	&msm_device_smd,
 	&msm_device_nand,
+	&msm_device_otg,
+#if 0
 	&msm_device_hsusb,
 	&usb_mass_storage_device,
+#endif
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	&rndis_device,
 #endif
+#if 0
 	&android_usb_device,
+#endif
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 #ifdef CONFIG_720P_CAMERA
@@ -1226,7 +1664,7 @@ static int __init mahimahi_board_serialno_setup(char *serialno)
 #endif
 
 	android_usb_pdata.serial_number = serialno;
-	msm_hsusb_pdata.serial_number = serialno;
+/*	msm_hsusb_pdata.serial_number = serialno;*/
 	return 1;
 }
 __setup("androidboot.serialno=", mahimahi_board_serialno_setup);
@@ -1308,13 +1746,248 @@ static void mahimahi_reset(void)
 	gpio_set_value(MAHIMAHI_GPIO_PS_HOLD, 0);
 }
 
+static void do_grp_reset(void)
+{
+	writel(0x20000, MSM_CLK_CTL_BASE + 0x214);
+}
+
+static void do_sdc1_reset(void)
+{
+	volatile uint32_t* sdc1_clk = MSM_CLK_CTL_BASE + 0x218;
+
+	*sdc1_clk |= (1 << 9);
+	mdelay(1);
+	*sdc1_clk &= ~(1 << 9);
+}
+
+static struct msm_pm_boot_platform_data msm_pm_boot_pdata __initdata = {
+	.mode = MSM_PM_BOOT_CONFIG_RESET_VECTOR_VIRT,
+	.v_addr = (unsigned int *)PAGE_OFFSET,
+};
+
+#define GPIO_I2C_CLK 95
+#define GPIO_I2C_DAT 96
+
+static void msm_i2c_gpio_config(int adap_id, int config_type)
+{
+	unsigned id;
+
+
+	if (adap_id > 0) return;
+
+	if (config_type == 0)
+	{
+		id = GPIO_CFG(GPIO_I2C_CLK, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+		id = GPIO_CFG(GPIO_I2C_DAT, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	}
+	else
+	{
+		id = GPIO_CFG(GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+		id = GPIO_CFG(GPIO_I2C_DAT , 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	}
+}
+
+static struct msm_i2c_platform_data msm_i2c_pdata = 
+{
+	.clk_freq = 100000,
+	.pri_clk = GPIO_I2C_CLK,
+	.pri_dat = GPIO_I2C_DAT,
+	.rmutex  = 0,
+	.msm_i2c_config_gpio = msm_i2c_gpio_config,
+};
+
+static void __init msm_device_i2c_init(void)
+{
+	msm_i2c_gpio_init();
+	msm_device_i2c.dev.platform_data = &msm_i2c_pdata;
+}
+
+static struct msm_pm_platform_data msm_pm_data[MSM_PM_SLEEP_MODE_NR] = {
+	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 8594,
+		.residency = 23740,
+	},
+	[MSM_PM_SLEEP_MODE_APPS_SLEEP] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 8594,
+		.residency = 23740,
+	},
+	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE] = {
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 0,
+#else /*CONFIG_MSM_STANDALONE_POWER_COLLAPSE*/
+		.idle_supported = 0,
+		.suspend_supported = 0,
+		.idle_enabled = 0,
+		.suspend_enabled = 0,
+#endif /*CONFIG_MSM_STANDALONE_POWER_COLLAPSE*/
+		.latency = 500,
+		.residency = 6000,
+	},
+	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 0,
+		.suspend_enabled = 1,
+		.latency = 443,
+		.residency = 1098,
+	},
+	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 2,
+		.residency = 0,
+	},
+};
+
+static struct msm_gpio bma_spi_gpio_config_data[] = {
+	{ GPIO_CFG(22, 0, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "bma_irq" },
+};
+
+static int msm_bma_gpio_setup(struct device *dev)
+{
+	int rc;
+
+	rc = msm_gpios_enable(bma_spi_gpio_config_data,
+		ARRAY_SIZE(bma_spi_gpio_config_data));
+
+	return rc;
+}
+
+static void msm_bma_gpio_teardown(struct device *dev)
+{
+	msm_gpios_disable_free(bma_spi_gpio_config_data,
+		ARRAY_SIZE(bma_spi_gpio_config_data));
+}
+
+static struct bma150_platform_data bma_pdata = {
+	.setup    = msm_bma_gpio_setup,
+	.teardown = msm_bma_gpio_teardown,
+};
+
+
+static struct spi_board_info msm_spi_board_info[] __initdata = {
+	{
+		.modalias	= "bma150",
+		.mode		= SPI_MODE_3,
+		.irq		= MSM_GPIO_TO_INT(22),
+		.bus_num	= 0,
+		.chip_select	= 0,
+		.max_speed_hz	= 10000000,
+		.platform_data	= &bma_pdata,
+	},
+};
+
+#define CT_CSR_PHYS		0xA8700000
+#define TCSR_SPI_MUX		(ct_csr_base + 0x54)
+static int msm_qsd_spi_dma_config(void)
+{
+	void __iomem *ct_csr_base = 0;
+	u32 spi_mux;
+	int ret = 0;
+
+	ct_csr_base = ioremap(CT_CSR_PHYS, PAGE_SIZE);
+	if (!ct_csr_base) {
+		pr_err("%s: Could not remap %x\n", __func__, CT_CSR_PHYS);
+		return -1;
+	}
+
+	spi_mux = readl(TCSR_SPI_MUX);
+	switch (spi_mux) {
+	case (1):
+		qsd_spi_resources[4].start  = DMOV_HSUART1_RX_CHAN;
+		qsd_spi_resources[4].end    = DMOV_HSUART1_TX_CHAN;
+		qsd_spi_resources[5].start  = DMOV_HSUART1_RX_CRCI;
+		qsd_spi_resources[5].end    = DMOV_HSUART1_TX_CRCI;
+		break;
+	case (2):
+		qsd_spi_resources[4].start  = DMOV_HSUART2_RX_CHAN;
+		qsd_spi_resources[4].end    = DMOV_HSUART2_TX_CHAN;
+		qsd_spi_resources[5].start  = DMOV_HSUART2_RX_CRCI;
+		qsd_spi_resources[5].end    = DMOV_HSUART2_TX_CRCI;
+		break;
+	case (3):
+		qsd_spi_resources[4].start  = DMOV_CE_OUT_CHAN;
+		qsd_spi_resources[4].end    = DMOV_CE_IN_CHAN;
+		qsd_spi_resources[5].start  = DMOV_CE_OUT_CRCI;
+		qsd_spi_resources[5].end    = DMOV_CE_IN_CRCI;
+		break;
+	default:
+		ret = -1;
+	}
+
+	iounmap(ct_csr_base);
+	return ret;
+}
+
+static uint32_t qsd_spi_gpio_config_data[] = {
+	PCOM_GPIO_CFG(17, 1, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	PCOM_GPIO_CFG(18, 1, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	PCOM_GPIO_CFG(19, 1, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	PCOM_GPIO_CFG(20, 1, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	PCOM_GPIO_CFG(21, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA),
+};
+
+static int msm_qsd_spi_gpio_config(void)
+{
+	int rc;
+
+	config_gpio_table(qsd_spi_gpio_config_data,
+		ARRAY_SIZE(qsd_spi_gpio_config_data));
+
+	/* Set direction for SPI_PWR */
+	gpio_direction_output(21, 1);
+
+	return 0;
+}
+
+static void msm_qsd_spi_gpio_release(void)
+{
+	msm_gpios_disable_free(qsd_spi_gpio_config_data,
+		ARRAY_SIZE(qsd_spi_gpio_config_data));
+}
+
+static struct msm_spi_platform_data qsd_spi_pdata = {
+	.max_clock_speed = 19200000,
+	.gpio_config  = msm_qsd_spi_gpio_config,
+	.gpio_release = msm_qsd_spi_gpio_release,
+	.dma_config = msm_qsd_spi_dma_config,
+};
+
+static void __init msm_qsd_spi_init(void)
+{
+	int rc;
+	rc = gpio_request(21, "spi_pwr");
+	if (rc)
+		pr_err("Failed requesting spi_pwr gpio\n");
+	qsd_device_spi.dev.platform_data = &qsd_spi_pdata;
+}
+
 int mahimahi_init_mmc(int sysrev, unsigned debug_uart);
 
+#if 0
 static const struct smd_tty_channel_desc smd_cdma_default_channels[] = {
 	{ .id = 0, .name = "SMD_DS" },
 	{ .id = 19, .name = "SMD_DATA3" },
 	{ .id = 27, .name = "SMD_GPSNMEA" }
 };
+#endif
 
 static void __init mahimahi_init(void)
 {
@@ -1323,13 +1996,18 @@ static void __init mahimahi_init(void)
 
 	printk("mahimahi_init() revision=%d\n", system_rev);
 
+#if 0
 	if (is_cdma_version(system_rev))
 		smd_set_channel_list(smd_cdma_default_channels,
 					ARRAY_SIZE(smd_cdma_default_channels));
+#endif
 
 	msm_hw_reset_hook = mahimahi_reset;
 
 	mahimahi_board_serialno_setup(board_serialno());
+
+	do_grp_reset();
+	do_sdc1_reset();
 
 #if 0
 	if (is_cdma_version(system_rev))
@@ -1371,7 +2049,9 @@ static void __init mahimahi_init(void)
 
 	gpio_request(MAHIMAHI_GPIO_DS2482_SLP_N, "ds2482_slp_n");
 
+#if 0
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+#endif
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -1379,8 +2059,14 @@ static void __init mahimahi_init(void)
 	platform_add_devices(msm_footswitch_devices,
 			msm_num_footswitch_devices);
 
+	msm_device_i2c_init();
+	msm_qsd_spi_init();
+
 	i2c_register_board_info(0, base_i2c_devices,
 		ARRAY_SIZE(base_i2c_devices));
+
+	spi_register_board_info(msm_spi_board_info,
+		ARRAY_SIZE(msm_spi_board_info));
 
 	if (system_rev == 0) {
 		/* Only board after XB with Audience A1026 */
@@ -1411,12 +2097,18 @@ static void __init mahimahi_init(void)
 	if (ret != 0)
 		pr_crit("%s: Unable to initialize MMC\n", __func__);
 
+	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
+
 	properties_kobj = kobject_create_and_add("board_properties", NULL);
 	if (properties_kobj)
 		ret = sysfs_create_group(properties_kobj,
 					 &mahimahi_properties_attr_group);
 	if (!properties_kobj || ret)
 		pr_err("failed to create board_properties\n");
+
+#ifdef CONFIG_USB_G_ANDROID
+	mahimahi_add_usb_devices();
+#endif
 
 	mahimahi_audio_init();
 	mahimahi_headset_init();
@@ -1437,6 +2129,12 @@ static void __init mahimahi_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].size = MSM_EBI1_BANK0_SIZE;
 	mi->bank[1].start = MSM_EBI1_BANK1_BASE;
 	mi->bank[1].size = MSM_EBI1_BANK1_SIZE;
+}
+
+static void __init mahimahi_init_irq(void)
+{
+	msm_init_irq();
+	msm_init_sirc();
 }
 
 static void __init mahimahi_map_io(void)
@@ -1460,7 +2158,7 @@ MACHINE_START(MAHIMAHI, "mahimahi")
 	.fixup		= mahimahi_fixup,
 	.map_io		= mahimahi_map_io,
 	.reserve	= mahimahi_reserve,
-	.init_irq	= msm_init_irq,
+	.init_irq	= mahimahi_init_irq,
 	.init_machine	= mahimahi_init,
 	.timer		= &msm_timer,
 MACHINE_END
