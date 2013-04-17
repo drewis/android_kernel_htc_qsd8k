@@ -233,6 +233,7 @@ ifdef CONFIG_CPU_IDLE
 	obj-$(CONFIG_ARCH_MSM9615) += cpuidle.o
 endif
 
+obj-$(CONFIG_HTC_35MM_JACK) += htc_35mm_jack.o
 
 obj-$(CONFIG_ARCH_FSM9XXX) += devices-fsm9xxx.o
 obj-$(CONFIG_ARCH_FSM9XXX) += clock-fsm9xxx.o clock-local.o acpuclock-fsm9xxx.o

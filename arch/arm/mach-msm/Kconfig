@@ -1206,15 +1206,21 @@ config HTC_HEADSET
 	 headset, on the trout platform. Can be used with the msm serial
 	 debugger, but not with serial console.
 
+config HTC_35MM_JACK
+	bool "HTC 3.5mm headset jack"
+	default n
+	help
+	 Provides support for 3.5mm headset jack devices, like wired headsets.
+
 config TROUT_BATTCHG
 	depends on MACH_TROUT && POWER_SUPPLY
 	default y
 	bool "Trout battery / charger driver"
 
 config HTC_BATTCHG
-        depends on MSM_ONCRPCROUTER && POWER_SUPPLY
-        default n
-        bool "HTC battery / charger driver"
+	depends on MSM_ONCRPCROUTER && POWER_SUPPLY
+	default n
+	  bool "HTC battery / charger driver"
 
 config HTC_BATTCHG_MAX8957
 	depends on MSM_ONCRPCROUTER && POWER_SUPPLY
@@ -1222,9 +1228,9 @@ config HTC_BATTCHG_MAX8957
 	bool "HTC battery / charger driver for PMIC MAX8957"
 
 config HTC_BATTCHG_SMEM
-        depends on (HTC_BATTCHG || HTC_BATTCHG_MAX8957)
-        default n
-        bool "Read Battery Info via SMEM"
+	depends on (HTC_BATTCHG || HTC_BATTCHG_MAX8957)
+	default n
+	  bool "Read Battery Info via SMEM"
 
 config HTC_PWRSINK
 	depends on MSM_SMD
