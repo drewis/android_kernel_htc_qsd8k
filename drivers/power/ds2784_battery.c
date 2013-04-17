@@ -39,7 +39,7 @@
 #include "../w1/w1.h"
 #include "w1_ds2784.h"
 
-extern int is_ac_power_supplied(void);
+//extern int is_ac_power_supplied(void);
 
 struct battery_status {
 	int timestamp;
@@ -964,10 +964,10 @@ static void battery_ext_power_changed(struct power_supply *psy)
 	got_power = power_supply_am_i_supplied(psy);
 
 	if (got_power) {
-		if (is_ac_power_supplied())
+		/*if (is_ac_power_supplied())
 			di->status.charge_source = SOURCE_AC;
 		else
-			di->status.charge_source = SOURCE_USB;
+			di->status.charge_source = SOURCE_USB;*/
 		wake_lock(&vbus_wake_lock);
 	} else {
 		di->status.charge_source = SOURCE_NONE;
